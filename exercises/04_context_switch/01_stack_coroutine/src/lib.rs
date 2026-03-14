@@ -1,4 +1,3 @@
-#![feature(naked_functions_rustic_abi)]
 //! # Stackful Coroutine and Context Switch (riscv64)
 //!
 //! In this exercise, you implement the minimal context switch using inline assembly,
@@ -76,7 +75,7 @@ impl TaskContext {
 ///
 /// Must be `#[unsafe(naked)]` to prevent the compiler from generating a prologue/epilogue.
 #[unsafe(naked)]
-pub unsafe fn switch_context(old: &mut TaskContext, new: &TaskContext) {
+pub unsafe extern "C" fn switch_context(old: &mut TaskContext, new: &TaskContext) {
     naked_asm!(
         "sd sp, 0(a0)",
         "sd ra, 8(a0)",
