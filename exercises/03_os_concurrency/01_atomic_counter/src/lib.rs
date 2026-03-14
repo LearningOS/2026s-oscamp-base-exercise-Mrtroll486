@@ -22,23 +22,19 @@ impl AtomicCounter {
     }
 
     /// Atomically increments by 1, returns the value **before** increment.
-    ///
     /// Hint: use `fetch_add` with `Ordering::Relaxed`
     pub fn increment(&self) -> u64 {
-        // TODO
-        todo!()
+        self.value.fetch_add(1, Ordering::Relaxed)
     }
 
     /// Atomically decrements by 1, returns the value **before** decrement.
     pub fn decrement(&self) -> u64 {
-        // TODO
-        todo!()
+        self.value.fetch_sub(1, Ordering::Relaxed)
     }
 
     /// Gets the current value.
     pub fn get(&self) -> u64 {
-        // TODO
-        todo!()
+        self.value.load(Ordering::Relaxed)
     }
 
     /// Atomic CAS (Compare-And-Swap) operation.
@@ -47,8 +43,7 @@ impl AtomicCounter {
     ///
     /// Hint: use `compare_exchange` with success ordering `Ordering::AcqRel` and failure ordering `Ordering::Acquire`
     pub fn compare_and_swap(&self, expected: u64, new_val: u64) -> Result<u64, u64> {
-        // TODO
-        todo!()
+        self.value.compare_exchange(expected, new_val, Ordering::AcqRel, Ordering::Acquire)
     }
 
     /// Multiply the value atomically using a CAS loop.
@@ -56,13 +51,25 @@ impl AtomicCounter {
     ///
     /// Hint: read current value in loop, compute new value, try CAS to update, retry on failure.
     pub fn fetch_multiply(&self, multiplier: u64) -> u64 {
-        // TODO: CAS loop
+        // CAS loop
         // loop {
         //     let current = ...
         //     let new = current * multiplier;
         //     match self.compare_and_swap(current, new) { ... }
         // }
-        todo!()
+        loop {
+            let old_val = self.value.load(Ordering::Acquire);
+            let new_val = old_val * multiplier;
+
+            match self.value.compare_exchange(old_val, new_val, Ordering::AcqRel, Ordering::Acquire) {
+                Ok(_) => {
+                    return old_val;
+                },
+                Err(_) => {
+                    // Auto retry
+                }
+            }
+        }
     }
 }
 

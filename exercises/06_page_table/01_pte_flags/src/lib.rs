@@ -57,28 +57,32 @@ const PPN_MASK: u64 = (1u64 << 44) - 1; // 44-bit PPN
 ///
 /// Hint: Shift PPN left by PPN_SHIFT bits, then OR with flags.
 pub fn make_pte(ppn: u64, flags: u64) -> u64 {
-    // TODO: Construct page table entry using ppn and flags
-    todo!()
+    // Construct page table entry using ppn and flags
+    (ppn << PPN_SHIFT) | flags
 }
 
 /// Extract physical page number (PPN) from page table entry.
 ///
 /// Hint: Right shift by PPN_SHIFT bits, then AND with PPN_MASK.
 pub fn extract_ppn(pte: u64) -> u64 {
-    // TODO: Extract PPN from pte
-    todo!()
+    // Extract PPN from pte
+    (pte >> PPN_SHIFT) & PPN_MASK
 }
 
 /// Extract flags (lower 8 bits) from page table entry.
 pub fn extract_flags(pte: u64) -> u64 {
-    // TODO: Extract lower 8-bit flags
-    todo!()
+    // Extract lower 8-bit flags
+    pte & 0xff
 }
 
 /// Check whether page table entry is valid (V bit set).
 pub fn is_valid(pte: u64) -> bool {
-    // TODO: Check PTE_V
-    todo!()
+    // Check PTE_V
+    if pte & PTE_V > 0 {
+        true
+    } else {
+        false
+    }
 }
 
 /// Determine whether page table entry is a leaf PTE.
@@ -86,8 +90,12 @@ pub fn is_valid(pte: u64) -> bool {
 /// In SV39, if any of R, W, X bits is set, the PTE is a leaf,
 /// pointing to the final physical page. Otherwise it points to next-level page table.
 pub fn is_leaf(pte: u64) -> bool {
-    // TODO: Check if any of R/W/X bits is set
-    todo!()
+    // Check if any of R/W/X bits is set
+    if pte & (PTE_R | PTE_W | PTE_X) > 0 {
+        true
+    } else {
+        false
+    }
 }
 
 /// Check whether page table entry permits the requested access based on given permissions.
@@ -98,8 +106,20 @@ pub fn is_leaf(pte: u64) -> bool {
 ///
 /// Returns true iff: PTE is valid, and each requested permission is satisfied.
 pub fn check_permission(pte: u64, read: bool, write: bool, execute: bool) -> bool {
-    // TODO: First check if valid, then check each requested permission
-    todo!()
+    // First check if valid, then check each requested permission
+    if pte & PTE_V != 0 {
+        // pte is valid
+        let read_mask = if read { PTE_R } else { 0xffffffff };
+        let write_mask = if write { PTE_W } else { 0xffffffff };
+        let exec_mask = if execute { PTE_X } else { 0xffffffff };
+        if pte & read_mask != 0 && pte & write_mask != 0 && pte & exec_mask != 0 {
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    }
 }
 
 #[cfg(test)]

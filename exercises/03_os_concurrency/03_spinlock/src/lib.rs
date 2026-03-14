@@ -10,6 +10,7 @@
 //! - `UnsafeCell` provides interior mutability
 
 use std::cell::UnsafeCell;
+use std::hint;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Basic spin lock
@@ -31,7 +32,7 @@ impl<T> SpinLock<T> {
 
     /// Acquire lock, returning a mutable reference to inner data.
     ///
-    /// TODO: Use compare_exchange to spin until lock is acquired
+    /// Use compare_exchange to spin until lock is acquired
     /// 1. In a loop, try to change locked from false to true
     /// 2. Success uses Acquire ordering, failure uses Relaxed
     /// 3. On failure call `core::hint::spin_loop()` to hint CPU
@@ -40,23 +41,43 @@ impl<T> SpinLock<T> {
     /// # Safety
     /// Caller must ensure `unlock` is called after using the data.
     pub fn lock(&self) -> &mut T {
-        // TODO
-        todo!()
+        loop {
+            match self.locked.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed) {
+                Ok(_) => {
+                    break;
+                },
+                Err(_) => {
+                    hint::spin_loop();
+                }
+            }
+        }
+        
+        unsafe {
+            &mut *self.data.get()
+        }
     }
 
     /// Release lock.
     ///
-    /// TODO: Set locked to false (using Release ordering)
+    /// Set locked to false (using Release ordering)
     pub fn unlock(&self) {
-        // TODO
-        todo!()
+        self.locked.store(false, Ordering::Release);
     }
 
     /// Try to acquire lock without spinning.
     /// Returns Some(&mut T) on success, None if lock is busy.
     pub fn try_lock(&self) -> Option<&mut T> {
-        // TODO: Single compare_exchange attempt
-        todo!()
+        // Single compare_exchange attempt
+        match self.locked.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed) {
+            Ok(_) => {
+                unsafe {
+                    Some(&mut *self.data.get())
+                }
+            },
+            Err(_) => {
+                None
+            }
+        }
     }
 }
 

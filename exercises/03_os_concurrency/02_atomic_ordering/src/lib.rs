@@ -13,7 +13,7 @@
 //! When thread A writes with Release, and thread B reads the same location with Acquire,
 //! thread B will see all writes that thread A performed before the Release.
 
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::{hint, sync::atomic::{AtomicBool, AtomicU32, Ordering}};
 
 /// Use Release-Acquire semantics to safely pass data between two threads.
 ///
@@ -34,24 +34,28 @@ impl FlagChannel {
 
     /// Producer: store data first, then set ready flag.
     ///
-    /// TODO: Choose correct Ordering
+    /// Choose correct Ordering
     /// - What Ordering should be used for writing data?
     /// - What Ordering should be used for writing ready? (ensuring data writes are visible to consumer)
     pub fn produce(&self, value: u32) {
-        // TODO: Store data (choose appropriate Ordering)
-        // TODO: Set ready = true (choose appropriate Ordering so data writes complete before this)
-        todo!()
+        // Store data (choose appropriate Ordering)
+        self.data.store(value, Ordering::Relaxed);
+        // Set ready = true (choose appropriate Ordering so data writes complete before this)
+        self.ready.store(true, Ordering::Release);
     }
 
     /// Consumer: spin-wait for ready flag, then read data.
     ///
-    /// TODO: Choose correct Ordering
+    /// Choose correct Ordering
     /// - What Ordering should be used for reading ready? (ensuring it sees data writes from produce)
     /// - What Ordering should be used for reading data?
     pub fn consume(&self) -> u32 {
-        // TODO: Spin-wait for ready to become true (choose appropriate Ordering)
-        // TODO: Read data (choose appropriate Ordering)
-        todo!()
+        // Spin-wait for ready to become true (choose appropriate Ordering)
+        while !self.ready.load(Ordering::Acquire) {
+            hint::spin_loop();
+        }
+        // Read data (choose appropriate Ordering)
+        self.data.load(Ordering::Relaxed)
     }
 
     /// Reset channel state
@@ -81,15 +85,32 @@ impl OnceCell {
     ///
     /// Hint: use `compare_exchange` to ensure only one thread succeeds.
     pub fn init(&self, val: u32) -> bool {
-        // TODO: Use compare_exchange to ensure initialization only once
+        // Use compare_exchange to ensure initialization only once
         // Store value on success
-        todo!()
+        let old_val = self.initialized.load(Ordering::Acquire);
+        
+        if !old_val {
+            // not initialized
+            match self.initialized.compare_exchange(old_val, true, Ordering::AcqRel, Ordering::Acquire) {
+                Ok(_) => {
+                    self.value.store(val, Ordering::Release);
+                    true
+                },
+                Err(_) => { false }
+            }
+        } else {
+            false
+        }
     }
 
     /// Get value. Returns Some if initialized, otherwise None.
     pub fn get(&self) -> Option<u32> {
-        // TODO: Check initialized flag, then read value
-        todo!()
+        // Check initialized flag, then read value
+        if self.initialized.load(Ordering::Acquire) {
+            Some(self.value.load(Ordering::Relaxed))
+        } else {
+            None
+        }
     }
 }
 

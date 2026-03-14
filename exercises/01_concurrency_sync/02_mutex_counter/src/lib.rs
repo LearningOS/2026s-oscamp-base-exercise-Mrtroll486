@@ -16,11 +16,23 @@ use std::thread;
 ///
 /// Hint: Use `Arc<Mutex<usize>>` as the shared counter.
 pub fn concurrent_counter(n_threads: usize, count_per_thread: usize) -> usize {
-    // TODO: Create Arc<Mutex<usize>> with initial value 0
-    // TODO: Spawn n_threads threads
-    // TODO: In each thread, lock() and increment count_per_thread times
-    // TODO: Join all threads, return final value
-    todo!()
+    // Create Arc<Mutex<usize>> with initial value 0
+    let counter = Arc::new(Mutex::new(0));
+    // Spawn n_threads threads
+    let mut threads = Vec::new();
+    for _ in 0..n_threads {
+        let counter = counter.clone();
+        threads.push(thread::spawn(move || {
+            // In each thread, lock() and increment count_per_thread times
+            *counter.lock().unwrap() += count_per_thread;
+        }))
+    }
+    // Join all threads, return final value
+    for i in threads {
+        i.join().unwrap();
+    }
+    
+    Arc::try_unwrap(counter).unwrap().into_inner().unwrap()
 }
 
 /// Add elements to a shared vector concurrently using multiple threads.
@@ -29,10 +41,23 @@ pub fn concurrent_counter(n_threads: usize, count_per_thread: usize) -> usize {
 ///
 /// Hint: Use `Arc<Mutex<Vec<usize>>>`.
 pub fn concurrent_collect(n_threads: usize) -> Vec<usize> {
-    // TODO: Create Arc<Mutex<Vec<usize>>>
-    // TODO: Each thread pushes its own id
-    // TODO: After joining all threads, sort the result and return
-    todo!()
+    // Create Arc<Mutex<Vec<usize>>>
+    let collected = Arc::new(Mutex::new(Vec::new()));
+    // Each thread pushes its own id
+    let mut pool = Vec::new();
+    for i in 0..n_threads {
+        let collected = collected.clone();
+        pool.push(thread::spawn(move || {
+            collected.lock().unwrap().push(i);
+        }));
+    }
+    // After joining all threads, sort the result and return
+    for i in pool {
+        i.join().unwrap();
+    }
+    collected.lock().unwrap().sort_unstable();
+    
+    Arc::try_unwrap(collected).unwrap().into_inner().unwrap()
 }
 
 #[cfg(test)]

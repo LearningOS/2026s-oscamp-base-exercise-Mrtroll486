@@ -7,6 +7,8 @@
 //! - Async `send` and `recv`
 //! - Channel closing mechanism (receiver returns None after all senders are dropped)
 
+use std::vec;
+
 use tokio::sync::mpsc;
 
 /// Async producer-consumer:
@@ -15,23 +17,48 @@ use tokio::sync::mpsc;
 ///
 /// Hint: Set channel capacity to items.len().max(1)
 pub async fn producer_consumer(items: Vec<String>) -> Vec<String> {
-    // TODO: Create channel with mpsc::channel
-    // TODO: Spawn producer task: iterate through items, send each one
-    // TODO: Spawn consumer task: loop recv until channel closes, collect results
-    // TODO: Wait for consumer to complete and return results
-    todo!()
+    // Create channel with mpsc::channel
+    let (tx, mut rx) = mpsc::channel(items.len().max(1));
+    // Spawn producer task: iterate through items, send each one
+    tokio::spawn(async move {
+        for i in items {
+            tx.send(i).await.unwrap();
+        }
+    });
+    // Spawn consumer task: loop recv until channel closes, collect results
+    // Wait for consumer to complete and return results
+    let mut result = vec![];
+    while let Some(i) = rx.recv().await {
+        result.push(i);
+    }
+    
+    result
 }
 
 /// Fan‑in pattern: multiple producers, one consumer.
 /// Create `n_producers` producers, each sending `"producer {id}: message"`.
 /// Consumer collects all messages, sorts them, and returns.
 pub async fn fan_in(n_producers: usize) -> Vec<String> {
-    // TODO: Create mpsc channel
-    // TODO: Spawn n_producers producer tasks
+    // Create mpsc channel
+    let (tx, mut rx) = mpsc::channel(1);
+    // Spawn n_producers producer tasks
     //       Each sends format!("producer {id}: message")
-    // TODO: Drop the original sender (important! otherwise channel won't close)
-    // TODO: Consumer loops receiving, collects and sorts
-    todo!()
+    for i in 0..n_producers {
+        let tx_copy = tx.clone();
+        tokio::spawn(async move {
+            tx_copy.send(format!("producer {}: message", i)).await.unwrap();
+        });
+    }
+    // Drop the original sender (important! otherwise channel won't close)
+    drop(tx);
+    // Consumer loops receiving, collects and sorts
+    let mut result = vec![];
+    while let Some(item) = rx.recv().await {
+        result.push(item);
+    }
+    
+    result.sort();
+    result
 }
 
 #[cfg(test)]

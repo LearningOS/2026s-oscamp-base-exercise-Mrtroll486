@@ -48,42 +48,63 @@ pub trait File: Send + Sync {
 
 /// File descriptor table
 pub struct FdTable {
-    // TODO: Design the internal structure
+    // Design the internal structure
     // Hint: use Vec<Option<Arc<dyn File>>>
     //       the index is the fd number, None means the fd is closed or unallocated
+    fds: Vec<Option<Arc<dyn File>>>,
+    count: usize,
 }
 
 impl FdTable {
     /// Create an empty fd table
     pub fn new() -> Self {
-        // TODO
-        todo!()
+        FdTable { fds: Vec::new(), count: 0 }
     }
 
     /// Allocate a new fd, return the fd number.
     ///
     /// Prefers reusing the smallest closed fd number; if no free slot, appends to the end.
     pub fn alloc(&mut self, file: Arc<dyn File>) -> usize {
-        // TODO
-        todo!()
+        for (fd_idx, fd_slot) in self.fds.iter_mut().enumerate() {
+            if let None = fd_slot {
+                *fd_slot = Some(file);
+                self.count += 1;
+                return fd_idx;
+            }
+        };
+
+        // no empty slot
+        let fd_idx = self.fds.len();
+        self.fds.push(Some(file));
+        self.count += 1;
+
+        fd_idx
     }
 
     /// Get the file object for an fd. Returns None if the fd doesn't exist or is closed.
     pub fn get(&self, fd: usize) -> Option<Arc<dyn File>> {
-        // TODO
-        todo!()
+        match self.fds.get(fd) {
+            Some(Some(fd_slot)) => {
+                Some(fd_slot.clone())
+            },
+            _ => { None }
+        }
     }
 
     /// Close an fd. Returns true on success, false if the fd doesn't exist or is already closed.
     pub fn close(&mut self, fd: usize) -> bool {
-        // TODO
-        todo!()
+        if let Some(fd) = self.fds.get_mut(fd) {
+            *fd = None;
+            self.count -= 1;
+            true
+        } else {
+            false
+        }
     }
 
     /// Return the number of currently allocated fds (excluding closed ones)
     pub fn count(&self) -> usize {
-        // TODO
-        todo!()
+        self.count
     }
 }
 
